@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Bacha Mario Fixed</title>
+    <title>Bacha Mario BOSS UPDATE</title>
     <style>
         body { margin: 0; overflow: hidden; background: #87CEEB; font-family: sans-serif; touch-action: manipulation; }
         canvas { display: block; }
@@ -11,7 +11,7 @@
     </style>
 </head>
 <body onclick="jump()" ontouchstart="jump()">
-    <div id="ui">Очки: <span id="score">0</span></div>
+    <div id="ui">Очки: <span id="score">0</span> <span id="boss-hp" style="color:red; margin-left:20px;"></span></div>
     <canvas id="game"></canvas>
 
 <script>
@@ -30,10 +30,13 @@ const gravity = 0.6;
 let player = { x: 50, y: 0, w: 50, h: 80, vy: 0, jump: -14, ground: false };
 let mobs = [];
 let coins = [];
+let boss = { active: false, x: 2000, y: 0, w: 150, h: 200, hp: 5, speed: 2, state: 'enter' };
 
+// Картинки
 const pImg = new Image(); pImg.src = 'player.png';
 const mImg = new Image(); mImg.src = 'mob.png';
-const cImg = new Image(); cImg.src = 'coin.png'; // Проверь это имя на GitHub!
+const cImg = new Image(); cImg.src = 'coin.png';
+const bImg = new Image(); bImg.src = 'boss.png'; // НЕ ЗАБУДЬ ЗАГРУЗИТЬ boss.png НА GITHUB
 
 let lastTime = 0;
 const fps = 60;
@@ -46,10 +49,7 @@ function jump(e) {
 
 function update(timestamp) {
     const deltaTime = timestamp - lastTime;
-    if (deltaTime < interval) {
-        requestAnimationFrame(update);
-        return;
-    }
+    if (deltaTime < interval) { requestAnimationFrame(update); return; }
     lastTime = timestamp - (deltaTime % interval);
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -58,60 +58,79 @@ function update(timestamp) {
     ctx.fillStyle = "#329632";
     ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
 
-    // Физика игрока
+    // Игрок
     player.vy += gravity;
     player.y += player.vy;
-    
-    // Фикс застревания
-    if(player.y > canvas.height - 120) { 
-        player.y = canvas.height - 120; 
-        player.vy = 0; 
-        player.ground = true; 
-    }
-
+    if(player.y > canvas.height - 120) { player.y = canvas.height - 120; player.vy = 0; player.ground = true; }
     ctx.drawImage(pImg, player.x, player.y, player.w, player.h);
 
-    // Спавн мобов
-    if(Math.random() < 0.012 && (mobs.length === 0 || mobs[mobs.length-1].x < canvas.width - 300)) {
-        mobs.push({ x: canvas.width, y: canvas.height - 115, w: 60, h: 75 });
+    // ЛОГИКА БОССА (при 500 очках)
+    if (score >= 500 && !boss.active && boss.hp > 0) {
+        boss.active = true;
+        boss.x = canvas.width + 100;
+        boss.y = canvas.height - 240;
     }
 
-    // Спавн лимонада (монеток)
-    if(Math.random() < 0.008) {
-        coins.push({ x: canvas.width, y: canvas.height - 200 - Math.random() * 100, w: 30, h: 60 });
+    if (boss.active) {
+        document.getElementById("boss-hp").innerText = "HP БОССА: " + boss.hp;
+        
+        if (boss.state === 'enter') {
+            boss.x -= 2;
+            if (boss.x < canvas.width - 200) boss.state = 'fight';
+        } else if (boss.state === 'fight') {
+            boss.x -= boss.speed;
+            if (boss.x < 50 || boss.x > canvas.width - 200) boss.speed *= -1;
+        }
+
+        if (bImg.complete && bImg.naturalWidth !== 0) {
+            ctx.drawImage(bImg, boss.x, boss.y, boss.w, boss.h);
+        } else {
+            ctx.fillStyle = "darkred";
+            ctx.fillRect(boss.x, boss.y, boss.w, boss.h);
+        }
+
+        // Столкновение с боссом
+        if (player.x < boss.x + boss.w - 20 && player.x + player.w > boss.x + 20 && player.y < boss.y + boss.h && player.y + player.h > boss.y) {
+            if (player.vy > 0 && player.y + player.h < boss.y + 50) {
+                boss.hp -= 1;
+                player.vy = -15; // Отскок
+                boss.x += 40;
+                if (boss.hp <= 0) {
+                    boss.active = false;
+                    score += 250;
+                    document.getElementById("boss-hp").innerText = "ПОБЕДА!";
+                }
+            } else { location.reload(); }
+        }
+    } else {
+        document.getElementById("boss-hp").innerText = "";
+        // Спавн обычных вещей только если нет босса
+        if(Math.random() < 0.012 && (mobs.length === 0 || mobs[mobs.length-1].x < canvas.width - 300)) {
+            mobs.push({ x: canvas.width, y: canvas.height - 115, w: 60, h: 75 });
+        }
+        if(Math.random() < 0.008) {
+            coins.push({ x: canvas.width, y: canvas.height - 200 - Math.random() * 100, w: 30, h: 60 });
+        }
     }
 
-    // Обработка мобов
+    // Мобы
     mobs.forEach((m, i) => {
         m.x -= 5;
         ctx.drawImage(mImg, m.x, m.y, m.w, m.h);
-        
         if(player.x < m.x + m.w - 10 && player.x + player.w > m.x + 10 && player.y < m.y + m.h && player.y + player.h > m.y) {
             if(player.vy > 0 && player.y + player.h < m.y + 35) {
                 mobs.splice(i, 1); player.vy = -10; score += 10;
-            } else { 
-                score = 0; mobs = []; coins = []; 
-            }
+            } else { location.reload(); }
         }
         if(m.x < -100) mobs.splice(i, 1);
     });
 
-    // Обработка лимонада
+    // Монетки (Лимонад)
     coins.forEach((c, i) => {
         c.x -= 4;
-        // Если картинка загружена - рисуем её, если нет - желтый круг
-        if (cImg.complete && cImg.naturalWidth !== 0) {
-            ctx.drawImage(cImg, c.x, c.y, c.w, c.h);
-        } else {
-            ctx.fillStyle = "yellow";
-            ctx.beginPath();
-            ctx.arc(c.x + 15, c.y + 30, 15, 0, Math.PI*2);
-            ctx.fill();
-        }
-        
+        if (cImg.complete && cImg.naturalWidth !== 0) ctx.drawImage(cImg, c.x, c.y, c.w, c.h);
         if(player.x < c.x + c.w && player.x + player.w > c.x && player.y < c.y + c.h && player.y + player.h > c.y) {
-            coins.splice(i, 1);
-            score += 25;
+            coins.splice(i, 1); score += 25;
         }
         if(c.x < -100) coins.splice(i, 1);
     });
