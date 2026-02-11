@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Bacha Mario</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: sans-serif; touch-action: manipulation; }
+        canvas { display: block; }
+        #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 24px; text-shadow: 2px 2px 2px black; pointer-events: none; }
+    </style>
+</head>
+<body onclick="jump()">
+    <div id="ui">Очки: <span id="score">0</span></div>
+    <canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let score = 0;
+let player = { x: 50, y: 0, w: 70, h: 110, vy: 0, jump: -16, ground: false };
+let mobs = [];
+const gravity = 0.8;
+
+// Картинки подхватятся автоматически из той же папки
+const pImg = new Image(); pImg.src = 'player.png';
+const mImg = new Image(); mImg.src = 'mob.png';
+
+function jump() { if(player.ground) { player.vy = player.jump; player.ground = false; } }
+
+function update() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Рисуем землю
+    ctx.fillStyle = "#329632";
+    ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
+
+    // Физика игрока
+    player.vy += gravity;
+    player.y += player.vy;
+    if(player.y > canvas.height - 170) { player.y = canvas.height - 170; player.vy = 0; player.ground = true; }
+    ctx.drawImage(pImg, player.x, player.y, player.w, player.h);
+
+    // Создание мобов (врагов)
+    if(Math.random() < 0.015) mobs.push({ x: canvas.width, y: canvas.height - 150, w: 80, h: 100 });
+
+    mobs.forEach((m, i) => {
+        m.x -= 6;
+        ctx.drawImage(mImg, m.x, m.y, m.w, m.h);
+
+        // Логика столкновений
+        if(player.x < m.x + m.w && player.x + player.w > m.x && player.y < m.y + m.h && player.y + player.h > m.y) {
+            // Если игрок падает на моба сверху
+            if(player.vy > 0 && player.y + player.h < m.y + 40) {
+                mobs.splice(i, 1); player.vy = -12; score += 10;
+            } else {
+                // Если моб врезался сбоку — сброс игры
+                score = 0; mobs = [];
+            }
+        }
+        // Удаление мобов за экраном
+        if(m.x < -100) { mobs.splice(i, 1); score += 1; }
+    });
+
+    document.getElementById("score").innerText = score;
+    requestAnimationFrame(update);
+}
+update();
+</script>
+</body>
+</html>
