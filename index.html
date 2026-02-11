@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Bacha Mario Update</title>
+    <title>Bacha Mario Fixed</title>
     <style>
         body { margin: 0; overflow: hidden; background: #87CEEB; font-family: sans-serif; touch-action: manipulation; }
         canvas { display: block; }
-        #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 22px; text-shadow: 2px 2px 2px black; pointer-events: none; }
+        #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 20px; text-shadow: 2px 2px 2px black; pointer-events: none; }
     </style>
 </head>
 <body onclick="jump()" ontouchstart="jump()">
@@ -27,21 +27,20 @@ resize();
 
 let score = 0;
 const gravity = 0.6;
-let player = { x: 50, y: 0, w: 60, h: 100, vy: 0, jump: -15, ground: false };
+let player = { x: 50, y: 0, w: 50, h: 80, vy: 0, jump: -14, ground: false };
 let mobs = [];
-let coins = []; // Твой лимонад
+let coins = [];
 
-// Загрузка фото
 const pImg = new Image(); pImg.src = 'player.png';
 const mImg = new Image(); mImg.src = 'mob.png';
-const cImg = new Image(); cImg.src = 'coin.png'; // Переименуй фото лимонада в coin.png
+const cImg = new Image(); cImg.src = 'coin.png'; // Проверь это имя на GitHub!
 
 let lastTime = 0;
 const fps = 60;
 const interval = 1000 / fps;
 
 function jump(e) { 
-    if(e) e.preventDefault();
+    if(e && e.preventDefault) e.preventDefault();
     if(player.ground) { player.vy = player.jump; player.ground = false; } 
 }
 
@@ -57,43 +56,59 @@ function update(timestamp) {
     
     // Земля
     ctx.fillStyle = "#329632";
-    ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+    ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
 
     // Физика игрока
     player.vy += gravity;
     player.y += player.vy;
-    if(player.y > canvas.height - 150) { player.y = canvas.height - 150; player.vy = 0; player.ground = true; }
+    
+    // Фикс застревания
+    if(player.y > canvas.height - 120) { 
+        player.y = canvas.height - 120; 
+        player.vy = 0; 
+        player.ground = true; 
+    }
+
     ctx.drawImage(pImg, player.x, player.y, player.w, player.h);
 
     // Спавн мобов
-    if(Math.random() < 0.015 && (mobs.length === 0 || mobs[mobs.length-1].x < canvas.width - 300)) {
-        mobs.push({ x: canvas.width, y: canvas.height - 140, w: 70, h: 90 });
+    if(Math.random() < 0.012 && (mobs.length === 0 || mobs[mobs.length-1].x < canvas.width - 300)) {
+        mobs.push({ x: canvas.width, y: canvas.height - 115, w: 60, h: 75 });
     }
 
-    // Спавн "монеток" (лимонада)
-    if(Math.random() < 0.01) {
-        coins.push({ x: canvas.width, y: canvas.height - 250 - Math.random() * 100, w: 40, h: 80 });
+    // Спавн лимонада (монеток)
+    if(Math.random() < 0.008) {
+        coins.push({ x: canvas.width, y: canvas.height - 200 - Math.random() * 100, w: 30, h: 60 });
     }
 
-    // Логика мобов
+    // Обработка мобов
     mobs.forEach((m, i) => {
-        m.x -= 6;
+        m.x -= 5;
         ctx.drawImage(mImg, m.x, m.y, m.w, m.h);
         
         if(player.x < m.x + m.w - 10 && player.x + player.w > m.x + 10 && player.y < m.y + m.h && player.y + player.h > m.y) {
-            if(player.vy > 0 && player.y + player.h < m.y + 40) {
-                mobs.splice(i, 1); player.vy = -12; score += 10;
-            } else { score = 0; mobs = []; coins = []; }
+            if(player.vy > 0 && player.y + player.h < m.y + 35) {
+                mobs.splice(i, 1); player.vy = -10; score += 10;
+            } else { 
+                score = 0; mobs = []; coins = []; 
+            }
         }
         if(m.x < -100) mobs.splice(i, 1);
     });
 
-    // Логика монеток (лимонада)
+    // Обработка лимонада
     coins.forEach((c, i) => {
         c.x -= 4;
-        ctx.drawImage(cImg, c.x, c.y, c.w, c.h);
+        // Если картинка загружена - рисуем её, если нет - желтый круг
+        if (cImg.complete && cImg.naturalWidth !== 0) {
+            ctx.drawImage(cImg, c.x, c.y, c.w, c.h);
+        } else {
+            ctx.fillStyle = "yellow";
+            ctx.beginPath();
+            ctx.arc(c.x + 15, c.y + 30, 15, 0, Math.PI*2);
+            ctx.fill();
+        }
         
-        // Сбор монетки
         if(player.x < c.x + c.w && player.x + player.w > c.x && player.y < c.y + c.h && player.y + player.h > c.y) {
             coins.splice(i, 1);
             score += 25;
