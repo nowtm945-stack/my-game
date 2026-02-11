@@ -40,9 +40,9 @@ let lastTime = 0;
 const fps = 60;
 const interval = 1000 / fps;
 
-function jump(e) { 
+function jump(e) {
     if(e) e.preventDefault();
-    if(player.ground) { player.vy = player.jump; player.ground = false; } 
+    if(player.ground) { player.vy = player.jump; player.ground = false; }
 }
 
 function update(timestamp) {
@@ -55,7 +55,7 @@ function update(timestamp) {
     lastTime = timestamp - (deltaTime % interval);
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
     // Земля
     ctx.fillStyle = "#329632";
     ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
@@ -70,22 +70,22 @@ function update(timestamp) {
     if(Math.random() < 0.015 && (mobs.length === 0 || mobs[mobs.length-1].x < canvas.width - 250)) {
         mobs.push({ x: canvas.width, y: canvas.height - 110, w: 60, h: 75 });
     }
-    
+
     mobs.forEach((m, i) => {
         m.x -= 5; // Уменьшил скорость движения мобов
         ctx.drawImage(mImg, m.x, m.y, m.w, m.h);
-        
+
         // Столкновения
         if(player.x < m.x + m.w - 10 && player.x + player.w > m.x + 10 && player.y < m.y + m.h && player.y + player.h > m.y) {
             if(player.vy > 0 && player.y + player.h < m.y + 30) {
                 mobs.splice(i, 1); player.vy = -10; score += 10;
-            } else { 
-                score = 0; mobs = []; 
+            } else {
+                score = 0; mobs = [];
             }
         }
         if(m.x < -100) { mobs.splice(i, 1); score += 1; }
     });
-    
+
     document.getElementById("score").innerText = score;
     requestAnimationFrame(update);
 }
