@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Bacha Mario BOSS UPDATE</title>
+    <title>Bacha Mario BOSS 300</title>
     <style>
         body { margin: 0; overflow: hidden; background: #87CEEB; font-family: sans-serif; touch-action: manipulation; }
         canvas { display: block; }
@@ -30,13 +30,13 @@ const gravity = 0.6;
 let player = { x: 50, y: 0, w: 50, h: 80, vy: 0, jump: -14, ground: false };
 let mobs = [];
 let coins = [];
-let boss = { active: false, x: 2000, y: 0, w: 150, h: 200, hp: 5, speed: 2, state: 'enter' };
+// Настройки БОССА (Большой размер)
+let boss = { active: false, x: 2000, y: 0, w: 180, h: 220, hp: 5, speed: 3, state: 'enter' };
 
-// Картинки
 const pImg = new Image(); pImg.src = 'player.png';
 const mImg = new Image(); mImg.src = 'mob.png';
 const cImg = new Image(); cImg.src = 'coin.png';
-const bImg = new Image(); bImg.src = 'boss.png'; // НЕ ЗАБУДЬ ЗАГРУЗИТЬ boss.png НА GITHUB
+const bImg = new Image(); bImg.src = 'boss.png'; 
 
 let lastTime = 0;
 const fps = 60;
@@ -64,24 +64,25 @@ function update(timestamp) {
     if(player.y > canvas.height - 120) { player.y = canvas.height - 120; player.vy = 0; player.ground = true; }
     ctx.drawImage(pImg, player.x, player.y, player.w, player.h);
 
-    // ЛОГИКА БОССА (при 500 очках)
-    if (score >= 500 && !boss.active && boss.hp > 0) {
+    // ЛОГИКА БОССА (Порог 300 очков)
+    if (score >= 300 && !boss.active && boss.hp > 0) {
         boss.active = true;
         boss.x = canvas.width + 100;
-        boss.y = canvas.height - 240;
+        boss.y = canvas.height - 260; // Чтобы большой босс стоял на земле
     }
 
     if (boss.active) {
-        document.getElementById("boss-hp").innerText = "HP БОССА: " + boss.hp;
+        document.getElementById("boss-hp").innerText = "HP БОССА: " + "❤️".repeat(boss.hp);
         
         if (boss.state === 'enter') {
             boss.x -= 2;
-            if (boss.x < canvas.width - 200) boss.state = 'fight';
+            if (boss.x < canvas.width - 250) boss.state = 'fight';
         } else if (boss.state === 'fight') {
             boss.x -= boss.speed;
-            if (boss.x < 50 || boss.x > canvas.width - 200) boss.speed *= -1;
+            if (boss.x < 50 || boss.x > canvas.width - 250) boss.speed *= -1;
         }
 
+        // Отрисовка босса
         if (bImg.complete && bImg.naturalWidth !== 0) {
             ctx.drawImage(bImg, boss.x, boss.y, boss.w, boss.h);
         } else {
@@ -89,22 +90,22 @@ function update(timestamp) {
             ctx.fillRect(boss.x, boss.y, boss.w, boss.h);
         }
 
-        // Столкновение с боссом
-        if (player.x < boss.x + boss.w - 20 && player.x + player.w > boss.x + 20 && player.y < boss.y + boss.h && player.y + player.h > boss.y) {
-            if (player.vy > 0 && player.y + player.h < boss.y + 50) {
+        // Битва с боссом
+        if (player.x < boss.x + boss.w - 30 && player.x + player.w > boss.x + 30 && player.y < boss.y + boss.h && player.y + player.h > boss.y) {
+            if (player.vy > 0 && player.y + player.h < boss.y + 60) {
                 boss.hp -= 1;
-                player.vy = -15; // Отскок
-                boss.x += 40;
+                player.vy = -16; // Высокий отскок после удара
+                boss.x += 60; // Босс отшатывается
                 if (boss.hp <= 0) {
                     boss.active = false;
-                    score += 250;
-                    document.getElementById("boss-hp").innerText = "ПОБЕДА!";
+                    score += 300; // Огромный бонус
+                    document.getElementById("boss-hp").innerText = "БОСС УНИЧТОЖЕН!";
                 }
             } else { location.reload(); }
         }
     } else {
         document.getElementById("boss-hp").innerText = "";
-        // Спавн обычных вещей только если нет босса
+        // Спавн мобов только если нет босса
         if(Math.random() < 0.012 && (mobs.length === 0 || mobs[mobs.length-1].x < canvas.width - 300)) {
             mobs.push({ x: canvas.width, y: canvas.height - 115, w: 60, h: 75 });
         }
@@ -113,7 +114,7 @@ function update(timestamp) {
         }
     }
 
-    // Мобы
+    // Обычные мобы и монетки
     mobs.forEach((m, i) => {
         m.x -= 5;
         ctx.drawImage(mImg, m.x, m.y, m.w, m.h);
@@ -125,7 +126,6 @@ function update(timestamp) {
         if(m.x < -100) mobs.splice(i, 1);
     });
 
-    // Монетки (Лимонад)
     coins.forEach((c, i) => {
         c.x -= 4;
         if (cImg.complete && cImg.naturalWidth !== 0) ctx.drawImage(cImg, c.x, c.y, c.w, c.h);
