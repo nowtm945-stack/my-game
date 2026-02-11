@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Bacha Mario Mobile</title>
+    <title>Bacha Mario Update</title>
     <style>
         body { margin: 0; overflow: hidden; background: #87CEEB; font-family: sans-serif; touch-action: manipulation; }
         canvas { display: block; }
-        #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 20px; text-shadow: 2px 2px 2px black; pointer-events: none; }
+        #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 22px; text-shadow: 2px 2px 2px black; pointer-events: none; }
     </style>
 </head>
 <body onclick="jump()" ontouchstart="jump()">
@@ -18,7 +18,6 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-// Подгоняем размер под экран телефона
 function resize() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -27,26 +26,26 @@ window.onresize = resize;
 resize();
 
 let score = 0;
-const gravity = 0.6; // Немного уменьшил гравитацию для плавности
-let player = { x: 30, y: 0, w: 50, h: 80, vy: 0, jump: -14, ground: false };
+const gravity = 0.6;
+let player = { x: 50, y: 0, w: 60, h: 100, vy: 0, jump: -15, ground: false };
 let mobs = [];
+let coins = []; // Твой лимонад
 
-// Картинки
+// Загрузка фото
 const pImg = new Image(); pImg.src = 'player.png';
 const mImg = new Image(); mImg.src = 'mob.png';
+const cImg = new Image(); cImg.src = 'coin.png'; // Переименуй фото лимонада в coin.png
 
-// Ограничение FPS (чтобы на мощных телефонах не летало слишком быстро)
 let lastTime = 0;
 const fps = 60;
 const interval = 1000 / fps;
 
-function jump(e) {
+function jump(e) { 
     if(e) e.preventDefault();
-    if(player.ground) { player.vy = player.jump; player.ground = false; }
+    if(player.ground) { player.vy = player.jump; player.ground = false; } 
 }
 
 function update(timestamp) {
-    // Проверка времени для фиксации 60 FPS
     const deltaTime = timestamp - lastTime;
     if (deltaTime < interval) {
         requestAnimationFrame(update);
@@ -55,37 +54,53 @@ function update(timestamp) {
     lastTime = timestamp - (deltaTime % interval);
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+    
     // Земля
     ctx.fillStyle = "#329632";
-    ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+    ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
 
-    // Игрок
+    // Физика игрока
     player.vy += gravity;
     player.y += player.vy;
-    if(player.y > canvas.height - 120) { player.y = canvas.height - 120; player.vy = 0; player.ground = true; }
+    if(player.y > canvas.height - 150) { player.y = canvas.height - 150; player.vy = 0; player.ground = true; }
     ctx.drawImage(pImg, player.x, player.y, player.w, player.h);
 
-    // Умный спавн мобов (не чаще чем раз в 1.5 секунды)
-    if(Math.random() < 0.015 && (mobs.length === 0 || mobs[mobs.length-1].x < canvas.width - 250)) {
-        mobs.push({ x: canvas.width, y: canvas.height - 110, w: 60, h: 75 });
+    // Спавн мобов
+    if(Math.random() < 0.015 && (mobs.length === 0 || mobs[mobs.length-1].x < canvas.width - 300)) {
+        mobs.push({ x: canvas.width, y: canvas.height - 140, w: 70, h: 90 });
     }
 
-    mobs.forEach((m, i) => {
-        m.x -= 5; // Уменьшил скорость движения мобов
-        ctx.drawImage(mImg, m.x, m.y, m.w, m.h);
+    // Спавн "монеток" (лимонада)
+    if(Math.random() < 0.01) {
+        coins.push({ x: canvas.width, y: canvas.height - 250 - Math.random() * 100, w: 40, h: 80 });
+    }
 
-        // Столкновения
+    // Логика мобов
+    mobs.forEach((m, i) => {
+        m.x -= 6;
+        ctx.drawImage(mImg, m.x, m.y, m.w, m.h);
+        
         if(player.x < m.x + m.w - 10 && player.x + player.w > m.x + 10 && player.y < m.y + m.h && player.y + player.h > m.y) {
-            if(player.vy > 0 && player.y + player.h < m.y + 30) {
-                mobs.splice(i, 1); player.vy = -10; score += 10;
-            } else {
-                score = 0; mobs = [];
-            }
+            if(player.vy > 0 && player.y + player.h < m.y + 40) {
+                mobs.splice(i, 1); player.vy = -12; score += 10;
+            } else { score = 0; mobs = []; coins = []; }
         }
-        if(m.x < -100) { mobs.splice(i, 1); score += 1; }
+        if(m.x < -100) mobs.splice(i, 1);
     });
 
+    // Логика монеток (лимонада)
+    coins.forEach((c, i) => {
+        c.x -= 4;
+        ctx.drawImage(cImg, c.x, c.y, c.w, c.h);
+        
+        // Сбор монетки
+        if(player.x < c.x + c.w && player.x + player.w > c.x && player.y < c.y + c.h && player.y + player.h > c.y) {
+            coins.splice(i, 1);
+            score += 25;
+        }
+        if(c.x < -100) coins.splice(i, 1);
+    });
+    
     document.getElementById("score").innerText = score;
     requestAnimationFrame(update);
 }
