@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Bacha Mario BOSS FIXED</title>
+    <title>Bacha Mario BOSS FIX</title>
     <style>
         body { margin: 0; overflow: hidden; background: #87CEEB; font-family: sans-serif; touch-action: manipulation; }
         canvas { display: block; }
-        #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 20px; text-shadow: 2px 2px 2px #000; pointer-events: none; z-index: 10; }
+        #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 20px; text-shadow: 2px 2px 2px #000; z-index: 10; pointer-events: none; }
         #boss-hp { position: absolute; top: 10px; right: 10px; color: red; font-size: 20px; font-weight: bold; z-index: 10; }
     </style>
 </head>
@@ -30,7 +30,20 @@ resize();
 let score = 0;
 let worldState = 'surface'; 
 let player = { x: 50, y: 0, w: 50, h: 80, vy: 0, jump: -16, ground: false };
-let boss = { active: false, spawned: false, hp: 5, x: 3000, y: 0, w: 160, h: 200, speed: 3, hitTimer: 0 };
+
+// Настройки босса
+let boss = { 
+    active: false, 
+    spawned: false, 
+    hp: 5, 
+    x: 0, 
+    y: 0, 
+    w: 160, 
+    h: 200, 
+    speed: 3, 
+    hitTimer: 0 
+};
+
 let mobs = [];
 let coins = [];
 
@@ -53,7 +66,7 @@ function update() {
     ctx.fillStyle = worldState === 'surface' ? "#228B22" : "#1b5e20"; 
     ctx.fillRect(0, groundY, canvas.width, 15);
 
-    // Гравитация
+    // ИГРОК
     player.vy += 0.7;
     player.y += player.vy;
     if (player.y > groundY - player.h) {
@@ -63,32 +76,35 @@ function update() {
     }
     ctx.drawImage(pImg, player.x, player.y, player.w, player.h);
 
-    // ПОЯВЛЕНИЕ БОССА (Поменяй 50 на 300 после теста!)
+    // ЛОГИКА БОССА
+    // Поставь обратно 300, когда проверишь
     if (score >= 50 && !boss.spawned && worldState === 'surface') {
         boss.active = true;
         boss.spawned = true;
-        boss.x = canvas.width + 100; // Ставим один раз
+        boss.x = canvas.width - 200; // Появляется сразу в зоне видимости
         boss.y = groundY - boss.h;
         mobs = []; 
     }
 
     if (boss.active) {
-        // ДВИЖЕНИЕ БОССА
         boss.x -= boss.speed;
         if (boss.x < 10 || boss.x > canvas.width - boss.w) boss.speed *= -1;
 
         ctx.save();
         if (boss.hitTimer > 0) { ctx.globalAlpha = 0.5; boss.hitTimer--; }
         
+        // Отрисовка босса (с проверкой на ошибку картинки)
         if (bImg.complete && bImg.naturalWidth !== 0) {
             ctx.drawImage(bImg, boss.x, boss.y, boss.w, boss.h);
         } else {
-            ctx.fillStyle = "red";
+            ctx.fillStyle = "darkred";
             ctx.fillRect(boss.x, boss.y, boss.w, boss.h);
+            ctx.fillStyle = "white";
+            ctx.fillText("БОСС", boss.x + 60, boss.y + 100);
         }
         ctx.restore();
         
-        document.getElementById("boss-hp").innerText = "HP БОССА: " + "❤️".repeat(boss.hp);
+        document.getElementById("boss-hp").innerText = "НР БОССА: " + "❤️".repeat(boss.hp);
 
         // Столкновение
         let hitX = player.x < boss.x + boss.w - 20 && player.x + player.w > boss.x + 20;
@@ -99,7 +115,7 @@ function update() {
                 boss.hp--;
                 boss.hitTimer = 30;
                 player.vy = -18;
-                boss.x += 100;
+                boss.x += (boss.speed > 0 ? -100 : 100);
                 if (boss.hp <= 0) {
                     boss.active = false;
                     document.getElementById("boss-hp").innerText = "ПОБЕДА!";
@@ -115,7 +131,7 @@ function update() {
         }
     }
 
-    // ЛИМОНАД И МОБЫ
+    // МОНЕТКИ И МОБЫ
     let moveSpeed = worldState === 'surface' ? -6 : 6;
     if (Math.random() < 0.02) {
         let startX = worldState === 'surface' ? canvas.width + 50 : -50;
