@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Bacha Mario BOSS FIX</title>
+    <title>Bacha Mario BOSS FIXED</title>
     <style>
         body { margin: 0; overflow: hidden; background: #87CEEB; font-family: sans-serif; touch-action: manipulation; }
         canvas { display: block; }
-        #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 24px; text-shadow: 2px 2px 2px #000; pointer-events: none; z-index: 10; }
-        #boss-hp { position: absolute; top: 10px; right: 10px; color: red; font-size: 24px; font-weight: bold; z-index: 10; }
+        #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 20px; text-shadow: 2px 2px 2px #000; pointer-events: none; z-index: 10; }
+        #boss-hp { position: absolute; top: 10px; right: 10px; color: red; font-size: 20px; font-weight: bold; z-index: 10; }
     </style>
 </head>
 <body>
@@ -29,8 +29,8 @@ resize();
 
 let score = 0;
 let worldState = 'surface'; 
-let player = { x: 100, y: 0, w: 50, h: 80, vy: 0, jump: -16, ground: false };
-let boss = { active: false, spawned: false, hp: 5, x: 0, y: 0, w: 160, h: 200, speed: 2, hitTimer: 0 };
+let player = { x: 50, y: 0, w: 50, h: 80, vy: 0, jump: -16, ground: false };
+let boss = { active: false, spawned: false, hp: 5, x: 3000, y: 0, w: 160, h: 200, speed: 3, hitTimer: 0 };
 let mobs = [];
 let coins = [];
 
@@ -61,56 +61,48 @@ function update() {
         player.vy = 0;
         player.ground = true;
     }
-
-    // Игрок
     ctx.drawImage(pImg, player.x, player.y, player.w, player.h);
 
-    // --- ЛОГИКА ПОЯВЛЕНИЯ БОССА ---
-    if (score >= 300 && !boss.spawned && worldState === 'surface') {
+    // ПОЯВЛЕНИЕ БОССА (Поменяй 50 на 300 после теста!)
+    if (score >= 50 && !boss.spawned && worldState === 'surface') {
         boss.active = true;
-        boss.spawned = true; 
-        boss.x = canvas.width + 100; // Появляется за краем
+        boss.spawned = true;
+        boss.x = canvas.width + 100; // Ставим один раз
         boss.y = groundY - boss.h;
-        mobs = []; // Очищаем обычных врагов
+        mobs = []; 
     }
 
     if (boss.active) {
+        // ДВИЖЕНИЕ БОССА
         boss.x -= boss.speed;
-        // Патрулирование
-        if (boss.x < 50 || boss.x > canvas.width - boss.w) {
-            boss.speed *= -1;
-        }
+        if (boss.x < 10 || boss.x > canvas.width - boss.w) boss.speed *= -1;
 
         ctx.save();
         if (boss.hitTimer > 0) { ctx.globalAlpha = 0.5; boss.hitTimer--; }
         
-        // РИСУЕМ БОССА (Если картинки нет — будет красный блок)
         if (bImg.complete && bImg.naturalWidth !== 0) {
             ctx.drawImage(bImg, boss.x, boss.y, boss.w, boss.h);
         } else {
             ctx.fillStyle = "red";
             ctx.fillRect(boss.x, boss.y, boss.w, boss.h);
-            ctx.fillStyle = "white";
-            ctx.fillText("BOSS", boss.x + 50, boss.y + 100);
         }
         ctx.restore();
         
         document.getElementById("boss-hp").innerText = "HP БОССА: " + "❤️".repeat(boss.hp);
 
-        // СТОЛКНОВЕНИЕ
+        // Столкновение
         let hitX = player.x < boss.x + boss.w - 20 && player.x + player.w > boss.x + 20;
         let hitY = player.y + player.h > boss.y && player.y < boss.y + boss.h;
 
         if (hitX && hitY) {
-            // Прыжок сверху (увеличил зону до 80px)
-            if (player.vy > 0 && (player.y + player.h) < (boss.y + 80)) {
+            if (player.vy > 0 && player.y + player.h < boss.y + 80) {
                 boss.hp--;
                 boss.hitTimer = 30;
-                player.vy = -18; // Сильный отскок
-                boss.x += 150;   // Босс отлетает
+                player.vy = -18;
+                boss.x += 100;
                 if (boss.hp <= 0) {
                     boss.active = false;
-                    document.getElementById("boss-hp").innerText = "ПОБЕДА! ВНИЗ!";
+                    document.getElementById("boss-hp").innerText = "ПОБЕДА!";
                     setTimeout(() => {
                         worldState = 'underground';
                         document.body.style.background = "#1a1a2e";
@@ -119,47 +111,35 @@ function update() {
                         score += 500;
                     }, 2000);
                 }
-            } else if (boss.hitTimer === 0) {
-                location.reload(); // Смерть
-            }
+            } else if (boss.hitTimer === 0) location.reload();
         }
     }
 
+    // ЛИМОНАД И МОБЫ
     let moveSpeed = worldState === 'surface' ? -6 : 6;
-
-    // МОНЕТКИ
     if (Math.random() < 0.02) {
         let startX = worldState === 'surface' ? canvas.width + 50 : -50;
-        coins.push({ x: startX, y: groundY - 100 - Math.random() * 150, w: 40, h: 45 });
+        coins.push({ x: startX, y: groundY - 120 - Math.random()*100, w: 40, h: 45 });
     }
     coins.forEach((c, i) => {
         c.x += moveSpeed;
         ctx.drawImage(cImg, c.x, c.y, c.w, c.h);
         if (player.x < c.x + c.w && player.x + player.w > c.x && player.y < c.y + c.h && player.y + player.h > c.y) {
-            coins.splice(i, 1);
-            score += 5;
+            coins.splice(i, 1); score += 5;
         }
-        if (c.x < -100 || c.x > canvas.width + 200) coins.splice(i, 1);
     });
 
-    // МОБЫ
     if (!boss.active && Math.random() < 0.007) {
         let startX = worldState === 'surface' ? canvas.width + 50 : -50;
-        if (mobs.length === 0 || Math.abs(mobs[mobs.length-1].x - startX) > 450) {
-            mobs.push({ x: startX, y: groundY - 75, w: 60, h: 75 });
-        }
+        mobs.push({ x: startX, y: groundY - 75, w: 60, h: 75 });
     }
     mobs.forEach((m, i) => {
         m.x += moveSpeed;
         ctx.drawImage(mImg, m.x, m.y, m.w, m.h);
         if (player.x < m.x + m.w - 10 && player.x + player.w > m.x + 10 && player.y + player.h > m.y) {
-            if (player.vy > 0) {
-                mobs.splice(i, 1);
-                score += 15;
-                player.vy = -12;
-            } else { location.reload(); }
+            if (player.vy > 0) { mobs.splice(i, 1); score += 15; player.vy = -12; }
+            else { location.reload(); }
         }
-        if (m.x < -100 || m.x > canvas.width + 200) mobs.splice(i, 1);
     });
 
     document.getElementById("score").innerText = score;
