@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Bacha Mario: Back to Bachkari</title>
+    <title>Bacha Mario: Bachkari Edition</title>
     <style>
         body { margin: 0; overflow: hidden; background: #87CEEB; font-family: sans-serif; touch-action: manipulation; }
         canvas { display: block; }
@@ -27,146 +27,121 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-// Состояния игры
 let score = 0;
-let worldState = 'surface'; // 'surface' или 'underground'
-let gameActive = true;
-
-let player = { 
-    x: 100, y: 0, w: 50, h: 80, 
-    vy: 0, jump: -16, ground: false 
-};
-
-let boss = {
-    active: false,
-    hp: 5,
-    x: 0, y: 0, w: 160, h: 200,
-    speed: 3,
-    hitTimer: 0
-};
-
+let worldState = 'surface'; 
+let player = { x: 100, y: 0, w: 50, h: 80, vy: 0, jump: -16, ground: false };
+let boss = { active: false, hp: 5, x: 0, y: 0, w: 160, h: 200, speed: 3, hitTimer: 0 };
 let mobs = [];
 let coins = [];
 
-// Картинки (заглушки, если файлов нет)
 const pImg = new Image(); pImg.src = 'player.png';
 const mImg = new Image(); mImg.src = 'mob.png';
 const cImg = new Image(); cImg.src = 'coin.png';
 const bImg = new Image(); bImg.src = 'boss.png';
 
-// Управление
 const jumpAction = () => { if(player.ground) { player.vy = player.jump; player.ground = false; } };
 window.addEventListener('touchstart', (e) => { e.preventDefault(); jumpAction(); }, {passive: false});
 window.addEventListener('keydown', (e) => { if(e.code === 'Space') jumpAction(); });
 
 function update() {
-    if (!gameActive) return;
-
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // 1. Гравитация
-    player.vy += 0.7;
-    player.y += player.vy;
+    
     let groundY = canvas.height - 100;
 
+    // --- РИСУЕМ ЗЕМЛЮ ---
+    ctx.fillStyle = worldState === 'surface' ? "#8B4513" : "#3e2723"; // Коричневая на улице, темная в селе
+    ctx.fillRect(0, groundY, canvas.width, 100);
+    ctx.fillStyle = worldState === 'surface' ? "#228B22" : "#1b5e20"; // Трава сверху
+    ctx.fillRect(0, groundY, canvas.width, 15);
+
+    // Гравитация
+    player.vy += 0.7;
+    player.y += player.vy;
     if (player.y > groundY - player.h) {
         player.y = groundY - player.h;
         player.vy = 0;
         player.ground = true;
     }
 
-    // 2. Отрисовка игрока
+    // Игрок
     ctx.drawImage(pImg, player.x, player.y, player.w, player.h);
 
-    // 3. Логика Босса (появление на 300 очках)
+    // Логика Босса
     if (score >= 300 && boss.hp > 0 && worldState === 'surface') {
         if (!boss.active) {
             boss.active = true;
             boss.x = canvas.width + 100;
             boss.y = groundY - boss.h;
         }
-
         boss.x -= boss.speed;
         if (boss.x < 50 || boss.x > canvas.width - boss.w) boss.speed *= -1;
 
-        // Рисуем босса
         ctx.save();
         if (boss.hitTimer > 0) { ctx.globalAlpha = 0.5; boss.hitTimer--; }
         ctx.drawImage(bImg, boss.x, boss.y, boss.w, boss.h);
         ctx.restore();
-        document.getElementById("boss-hp").innerText = "БОСС: " + "❤️".repeat(boss.hp);
+        document.getElementById("boss-hp").innerText = "HP: " + "❤️".repeat(boss.hp);
 
-        // Столкновение с боссом
-        let hitX = player.x < boss.x + boss.w - 30 && player.x + player.w > boss.x + 30;
-        let hitY = player.y + player.h > boss.y && player.y < boss.y + boss.h;
-
-        if (hitX && hitY) {
-            // Прыжок сверху (упрощенная зона)
-            if (player.vy > 0 && player.y + player.h < boss.y + 60) {
+        if (player.x < boss.x + boss.w - 30 && player.x + player.w > boss.x + 30 && player.y + player.h > boss.y) {
+            if (player.vy > 0 && player.y + player.h < boss.y + 70) {
                 boss.hp--;
                 boss.hitTimer = 20;
-                player.vy = -15; // Отскок
-                boss.x += 100;   // Отброс босса
+                player.vy = -18;
+                boss.x += 120;
                 if (boss.hp <= 0) {
                     boss.active = false;
                     document.getElementById("boss-hp").innerText = "ПАДАЕМ В БАЧКАРИ...";
-                    startTransition();
+                    setTimeout(() => {
+                        worldState = 'underground';
+                        document.body.style.background = "#1a1a2e";
+                        mobs = []; coins = [];
+                        player.x = canvas.width - 150;
+                        score += 500;
+                    }, 2000);
                 }
-            } else if (boss.hitTimer === 0) {
-                location.reload();
-            }
+            } else if (boss.hitTimer === 0) location.reload();
         }
     }
 
-    // 4. Мобы и монеты
-    let moveDir = (worldState === 'surface') ? -5 : 5;
+    // Направление движения предметов
+    let moveSpeed = worldState === 'surface' ? -6 : 6;
 
-    // Спавн
+    // --- МОНЕТКИ (ЛИМОНАД) ---
+    if (Math.random() < 0.02) {
+        let startX = worldState === 'surface' ? canvas.width + 50 : -50;
+        coins.push({ x: startX, y: groundY - 100 - Math.random() * 150, w: 40, h: 45 });
+    }
+    coins.forEach((c, i) => {
+        c.x += moveSpeed;
+        ctx.drawImage(cImg, c.x, c.y, c.w, c.h);
+        if (player.x < c.x + c.w && player.x + player.w > c.x && player.y < c.y + c.h && player.y + player.h > c.y) {
+            coins.splice(i, 1);
+            score += 5;
+        }
+        if (c.x < -100 || c.x > canvas.width + 100) coins.splice(i, 1);
+    });
+
+    // --- МОБЫ ---
     if (!boss.active && Math.random() < 0.015) {
-        if (worldState === 'surface') {
-            mobs.push({ x: canvas.width + 50, y: groundY - 70, w: 60, h: 70 });
-        } else {
-            mobs.push({ x: -100, y: groundY - 70, w: 60, h: 70 });
-        }
+        let startX = worldState === 'surface' ? canvas.width + 50 : -50;
+        mobs.push({ x: startX, y: groundY - 75, w: 60, h: 75 });
     }
-
     mobs.forEach((m, i) => {
-        m.x += moveDir;
+        m.x += moveSpeed;
         ctx.drawImage(mImg, m.x, m.y, m.w, m.h);
-        
-        // Столкновение с мобом
         if (player.x < m.x + m.w - 10 && player.x + player.w > m.x + 10 && player.y + player.h > m.y) {
             if (player.vy > 0) {
                 mobs.splice(i, 1);
-                score += 10;
-                player.vy = -10;
-            } else {
-                location.reload();
-            }
+                score += 15;
+                player.vy = -12;
+            } else { location.reload(); }
         }
+        if (m.x < -100 || m.x > canvas.width + 100) mobs.splice(i, 1);
     });
-
-    // 5. Лимиты экрана для игрока в подземелье
-    if (worldState === 'underground') {
-        if (player.x < 0) player.x = 0;
-        if (player.x > canvas.width - player.w) player.x = canvas.width - player.w;
-    }
 
     document.getElementById("score").innerText = score;
     requestAnimationFrame(update);
 }
-
-function startTransition() {
-    setTimeout(() => {
-        worldState = 'underground';
-        document.body.style.background = "#1a1a2e"; // Цвет подземелья
-        mobs = [];
-        player.x = canvas.width - 150; // Игрок теперь справа, идет налево
-        player.jump = -18; // В подземелье прыгаем выше
-        score += 500;
-    }, 2000);
-}
-
 requestAnimationFrame(update);
 </script>
 </body>
