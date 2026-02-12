@@ -1,27 +1,25 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Bacha Mario BOSS 300</title>
+    <title>Bacha Mario: Back to Bachkari</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Arial', sans-serif; touch-action: manipulation; }
+        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: sans-serif; touch-action: manipulation; }
         canvas { display: block; }
-        #ui { position: absolute; top: 10px; left: 10px; color: white; text-shadow: 2px 2px 4px #000; pointer-events: none; }
-        #boss-hp { position: absolute; top: 10px; right: 10px; color: #ff0000; font-weight: bold; font-size: 20px; }
+        #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 24px; text-shadow: 2px 2px 2px #000; pointer-events: none; }
+        #boss-hp { position: absolute; top: 10px; right: 10px; color: red; font-size: 24px; font-weight: bold; }
     </style>
 </head>
 <body>
-
-<div id="ui">Очки: <span id="score">0</span></div>
-<div id="boss-hp"></div>
-<canvas id="game"></canvas>
+    <div id="ui">Очки: <span id="score">0</span></div>
+    <div id="boss-hp"></div>
+    <canvas id="game"></canvas>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-// Адаптация под экран
 function resize() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -29,144 +27,144 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-// Игровые переменные
+// Состояния игры
 let score = 0;
-let lastTime = 0;
-let player = { x: 50, y: 0, w: 50, h: 80, vy: 0, jump: -17, ground: false }; // Увеличен прыжок для удобства
-let mobs = [];
-let coins = [];
-let boss = { 
-    active: false, 
-    x: 0, 
-    y: 0, 
-    w: 180, 
-    h: 220, 
-    hp: 5, 
-    speed: 3, 
-    state: 'enter',
-    hitTimer: 0 
+let worldState = 'surface'; // 'surface' или 'underground'
+let gameActive = true;
+
+let player = { 
+    x: 100, y: 0, w: 50, h: 80, 
+    vy: 0, jump: -16, ground: false 
 };
 
-// Картинки
+let boss = {
+    active: false,
+    hp: 5,
+    x: 0, y: 0, w: 160, h: 200,
+    speed: 3,
+    hitTimer: 0
+};
+
+let mobs = [];
+let coins = [];
+
+// Картинки (заглушки, если файлов нет)
 const pImg = new Image(); pImg.src = 'player.png';
 const mImg = new Image(); mImg.src = 'mob.png';
 const cImg = new Image(); cImg.src = 'coin.png';
 const bImg = new Image(); bImg.src = 'boss.png';
 
 // Управление
-window.addEventListener('touchstart', () => { if(player.ground) { player.vy = player.jump; player.ground = false; } });
-window.addEventListener('keydown', (e) => { if(e.code === 'Space' && player.ground) { player.vy = player.jump; player.ground = false; } });
+const jumpAction = () => { if(player.ground) { player.vy = player.jump; player.ground = false; } };
+window.addEventListener('touchstart', (e) => { e.preventDefault(); jumpAction(); }, {passive: false});
+window.addEventListener('keydown', (e) => { if(e.code === 'Space') jumpAction(); });
 
-function update(time) {
-    let dt = time - lastTime;
-    lastTime = time;
+function update() {
+    if (!gameActive) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Гравитация и игрок
-    player.vy += 0.8;
+    // 1. Гравитация
+    player.vy += 0.7;
     player.y += player.vy;
-    if(player.y > canvas.height - 120) { 
-        player.y = canvas.height - 120; 
-        player.vy = 0; 
-        player.ground = true; 
+    let groundY = canvas.height - 100;
+
+    if (player.y > groundY - player.h) {
+        player.y = groundY - player.h;
+        player.vy = 0;
+        player.ground = true;
     }
 
-    // Отрисовка игрока
+    // 2. Отрисовка игрока
     ctx.drawImage(pImg, player.x, player.y, player.w, player.h);
 
-    // ЛОГИКА БОССА
-    if (score >= 300 && !boss.active && boss.hp > 0) {
-        boss.active = true;
-        boss.x = canvas.width + 100;
-        boss.y = canvas.height - 260;
-    }
-
-    if (boss.active) {
-        document.getElementById("boss-hp").innerText = "HP БОССА: " + "❤️".repeat(boss.hp);
-        
-        if (boss.state === 'enter') {
-            boss.x -= 2;
-            if (boss.x < canvas.width - 250) boss.state = 'fight';
-        } else if (boss.state === 'fight') {
-            boss.x -= boss.speed;
-            if (boss.x < 20 || boss.x > canvas.width - 250) boss.speed *= -1;
+    // 3. Логика Босса (появление на 300 очках)
+    if (score >= 300 && boss.hp > 0 && worldState === 'surface') {
+        if (!boss.active) {
+            boss.active = true;
+            boss.x = canvas.width + 100;
+            boss.y = groundY - boss.h;
         }
 
-        // Отрисовка босса с миганием при ударе
+        boss.x -= boss.speed;
+        if (boss.x < 50 || boss.x > canvas.width - boss.w) boss.speed *= -1;
+
+        // Рисуем босса
         ctx.save();
-        if (boss.hitTimer > 0) {
-            ctx.globalAlpha = 0.5;
-            boss.hitTimer--;
-        }
-        if (bImg.complete && bImg.naturalWidth !== 0) {
-            ctx.drawImage(bImg, boss.x, boss.y, boss.w, boss.h);
-        } else {
-            ctx.fillStyle = "darkred";
-            ctx.fillRect(boss.x, boss.y, boss.w, boss.h);
-        }
+        if (boss.hitTimer > 0) { ctx.globalAlpha = 0.5; boss.hitTimer--; }
+        ctx.drawImage(bImg, boss.x, boss.y, boss.w, boss.h);
         ctx.restore();
+        document.getElementById("boss-hp").innerText = "БОСС: " + "❤️".repeat(boss.hp);
 
-        // СТОЛКНОВЕНИЕ С БОССОМ (ИСПРАВЛЕНО)
-        let hitX = player.x < boss.x + boss.w - 40 && player.x + player.w > boss.x + 40;
-        let hitY = player.y < boss.y + boss.h && player.y + player.h > boss.y;
+        // Столкновение с боссом
+        let hitX = player.x < boss.x + boss.w - 30 && player.x + player.w > boss.x + 30;
+        let hitY = player.y + player.h > boss.y && player.y < boss.y + boss.h;
 
         if (hitX && hitY) {
-            // Если игрок падает сверху на верхнюю часть босса
-            if (player.vy > 0 && (player.y + player.h) < (boss.y + boss.h / 2 + 40)) {
-                boss.hp -= 1;
-                boss.hitTimer = 15;
-                player.vy = -18; // Мощный отскок вверх
-                boss.x += 100;   // Босс отлетает назад
-                
+            // Прыжок сверху (упрощенная зона)
+            if (player.vy > 0 && player.y + player.h < boss.y + 60) {
+                boss.hp--;
+                boss.hitTimer = 20;
+                player.vy = -15; // Отскок
+                boss.x += 100;   // Отброс босса
                 if (boss.hp <= 0) {
                     boss.active = false;
-                    score += 500;
-                    document.getElementById("boss-hp").innerText = "ПОБЕДА! 🔥";
+                    document.getElementById("boss-hp").innerText = "ПАДАЕМ В БАЧКАРИ...";
+                    startTransition();
                 }
             } else if (boss.hitTimer === 0) {
-                // Если не прыгнул сверху и босс не в откате от удара — рестарт
                 location.reload();
             }
         }
-    } else {
-        // Если босса нет — спавним обычных мобов
-        if(Math.random() < 0.015 && (mobs.length === 0 || mobs[mobs.length-1].x < canvas.width - 400)) {
-            mobs.push({ x: canvas.width, y: canvas.height - 115, w: 60, h: 75 });
+    }
+
+    // 4. Мобы и монеты
+    let moveDir = (worldState === 'surface') ? -5 : 5;
+
+    // Спавн
+    if (!boss.active && Math.random() < 0.015) {
+        if (worldState === 'surface') {
+            mobs.push({ x: canvas.width + 50, y: groundY - 70, w: 60, h: 70 });
+        } else {
+            mobs.push({ x: -100, y: groundY - 70, w: 60, h: 70 });
         }
     }
 
-    // Мобы
     mobs.forEach((m, i) => {
-        m.x -= 6;
+        m.x += moveDir;
         ctx.drawImage(mImg, m.x, m.y, m.w, m.h);
-        // Смерть от моба
-        if(player.x < m.x + m.w - 10 && player.x + player.w > m.x + 10 && player.y + player.h > m.y + 10) {
-            if(player.vy > 0) { // Убить моба прыжком
+        
+        // Столкновение с мобом
+        if (player.x < m.x + m.w - 10 && player.x + player.w > m.x + 10 && player.y + player.h > m.y) {
+            if (player.vy > 0) {
                 mobs.splice(i, 1);
                 score += 10;
-                player.vy = -12;
+                player.vy = -10;
             } else {
                 location.reload();
             }
         }
-        if(m.x < -100) mobs.splice(i, 1);
     });
 
-    // Монетки
-    if(Math.random() < 0.02) coins.push({ x: canvas.width, y: canvas.height - 150 - Math.random() * 150, w: 40, h: 40 });
-    coins.forEach((c, i) => {
-        c.x -= 5;
-        if (cImg.complete) ctx.drawImage(cImg, c.x, c.y, c.w, c.h);
-        if(player.x < c.x + c.w && player.x + player.w > c.x && player.y < c.y + c.h && player.y + player.h > c.y) {
-            coins.splice(i, 1);
-            score += 5;
-        }
-        if(c.x < -100) coins.splice(i, 1);
-    });
+    // 5. Лимиты экрана для игрока в подземелье
+    if (worldState === 'underground') {
+        if (player.x < 0) player.x = 0;
+        if (player.x > canvas.width - player.w) player.x = canvas.width - player.w;
+    }
 
     document.getElementById("score").innerText = score;
     requestAnimationFrame(update);
+}
+
+function startTransition() {
+    setTimeout(() => {
+        worldState = 'underground';
+        document.body.style.background = "#1a1a2e"; // Цвет подземелья
+        mobs = [];
+        player.x = canvas.width - 150; // Игрок теперь справа, идет налево
+        player.jump = -18; // В подземелье прыгаем выше
+        score += 500;
+    }, 2000);
 }
 
 requestAnimationFrame(update);
