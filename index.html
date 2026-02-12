@@ -30,7 +30,8 @@ resize();
 let score = 0;
 let worldState = 'surface'; 
 let player = { x: 100, y: 0, w: 50, h: 80, vy: 0, jump: -16, ground: false };
-let boss = { active: false, hp: 5, x: 0, y: 0, w: 160, h: 200, speed: 3, hitTimer: 0 };
+// СКОРОСТЬ БОССА УМЕНЬШЕНА С 3 ДО 2
+let boss = { active: false, hp: 5, x: 0, y: 0, w: 160, h: 200, speed: 2, hitTimer: 0 };
 let mobs = [];
 let coins = [];
 
@@ -45,13 +46,12 @@ window.addEventListener('keydown', (e) => { if(e.code === 'Space') jumpAction();
 
 function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
     let groundY = canvas.height - 100;
 
-    // --- РИСУЕМ ЗЕМЛЮ ---
-    ctx.fillStyle = worldState === 'surface' ? "#8B4513" : "#3e2723"; // Коричневая на улице, темная в селе
+    // ЗЕМЛЯ
+    ctx.fillStyle = worldState === 'surface' ? "#8B4513" : "#3e2723"; 
     ctx.fillRect(0, groundY, canvas.width, 100);
-    ctx.fillStyle = worldState === 'surface' ? "#228B22" : "#1b5e20"; // Трава сверху
+    ctx.fillStyle = worldState === 'surface' ? "#228B22" : "#1b5e20"; 
     ctx.fillRect(0, groundY, canvas.width, 15);
 
     // Гравитация
@@ -63,10 +63,10 @@ function update() {
         player.ground = true;
     }
 
-    // Игрок
+    // Отрисовка игрока
     ctx.drawImage(pImg, player.x, player.y, player.w, player.h);
 
-    // Логика Босса
+    // ЛОГИКА БОССА
     if (score >= 300 && boss.hp > 0 && worldState === 'surface') {
         if (!boss.active) {
             boss.active = true;
@@ -80,14 +80,15 @@ function update() {
         if (boss.hitTimer > 0) { ctx.globalAlpha = 0.5; boss.hitTimer--; }
         ctx.drawImage(bImg, boss.x, boss.y, boss.w, boss.h);
         ctx.restore();
-        document.getElementById("boss-hp").innerText = "HP: " + "❤️".repeat(boss.hp);
+        document.getElementById("boss-hp").innerText = "БОСС: " + "❤️".repeat(boss.hp);
 
+        // Столкновение с боссом
         if (player.x < boss.x + boss.w - 30 && player.x + player.w > boss.x + 30 && player.y + player.h > boss.y) {
             if (player.vy > 0 && player.y + player.h < boss.y + 70) {
                 boss.hp--;
-                boss.hitTimer = 20;
+                boss.hitTimer = 25;
                 player.vy = -18;
-                boss.x += 120;
+                boss.x += 130;
                 if (boss.hp <= 0) {
                     boss.active = false;
                     document.getElementById("boss-hp").innerText = "ПАДАЕМ В БАЧКАРИ...";
@@ -103,10 +104,9 @@ function update() {
         }
     }
 
-    // Направление движения предметов
     let moveSpeed = worldState === 'surface' ? -6 : 6;
 
-    // --- МОНЕТКИ (ЛИМОНАД) ---
+    // ЛИМОНАД (COINS)
     if (Math.random() < 0.02) {
         let startX = worldState === 'surface' ? canvas.width + 50 : -50;
         coins.push({ x: startX, y: groundY - 100 - Math.random() * 150, w: 40, h: 45 });
@@ -121,10 +121,14 @@ function update() {
         if (c.x < -100 || c.x > canvas.width + 100) coins.splice(i, 1);
     });
 
-    // --- МОБЫ ---
-    if (!boss.active && Math.random() < 0.015) {
+    // МОБЫ (РЕДКОЕ ПОЯВЛЕНИЕ)
+    if (!boss.active && Math.random() < 0.007) { // Шанс уменьшен
         let startX = worldState === 'surface' ? canvas.width + 50 : -50;
-        mobs.push({ x: startX, y: groundY - 75, w: 60, h: 75 });
+        // Проверка дистанции, чтобы не спавнились кучей
+        let tooClose = mobs.some(m => Math.abs(m.x - startX) < 400);
+        if (!tooClose) {
+            mobs.push({ x: startX, y: groundY - 75, w: 60, h: 75 });
+        }
     }
     mobs.forEach((m, i) => {
         m.x += moveSpeed;
